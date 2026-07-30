@@ -1,0 +1,41 @@
+import {OPCODES,OPCODE_NAMES} from './opcodes.js';
+import {createFlags} from './flags.js';
+import {MEMORY_MAP} from '../memory/memoryMap.js';
+
+export class CPU{
+ constructor({ram,terminal=null,framebuffer=null}={}){this.ram=ram;this.terminal=terminal;this.framebuffer=framebuffer;this.reg=new Uint16Array(8);this.flags=createFlags();this.pc=MEMORY_MAP.PROGRAM_START;this.sp=MEMORY_MAP.STACK_TOP;this.halted=true;this.cycles=0;this.lastInstruction='';}
+ reset(){this.reg.fill(0);this.flags=createFlags();this.pc=MEMORY_MAP.PROGRAM_START;this.sp=MEMORY_MAP.STACK_TOP;this.halted=true;this.cycles=0;this.lastInstruction='';}
+ read8(a){if(a===MEMORY_MAP.TERMINAL_IN)return this.terminal?.read()??0;return this.ram.read8(a);}
+ write8(a,v){if(a===MEMORY_MAP.TERMINAL_OUT){this.terminal?.write(v);return;}if(a>=MEMORY_MAP.FRAMEBUFFER_BASE&&a<MEMORY_MAP.FRAMEBUFFER_BASE+MEMORY_MAP.FRAMEBUFFER_WIDTH*MEMORY_MAP.FRAMEBUFFER_HEIGHT){this.ram.write8(a,v);this.framebuffer?.write(a-MEMORY_MAP.FRAMEBUFFER_BASE,v);return;}this.ram.write8(a,v);}
+ read16(a){return this.read8(a)|this.read8(a+1)<<8;}
+ write16(a,v){this.write8(a,v);this.write8(a+1,v>>8);}
+ fetch8(){const v=this.read8(this.pc);this.pc=(this.pc+1)&0xFFFF;return v;}
+ fetch16(){const v=this.read16(this.pc);this.pc=(this.pc+2)&0xFFFF;return v;}
+ push(v){this.sp=(this.sp-2)&0xFFFF;this.write16(this.sp,v);}
+ pop(){const v=this.read16(this.sp);this.sp=(this.sp+2)&0xFFFF;return v;}
+ setFlags(v,carry=false){v&=0xFFFF;this.flags.Z=v===0;this.flags.N=!!(v&0x8000);this.flags.C=carry;}
+ operand(){const mode=this.fetch8();if(mode<8)return{mode:'reg',index:mode,value:this.reg[mode]};if(mode===0x80)return{mode:'imm',value:this.fetch16()};if(mode===0x40)return{mode:'mem',address:this.fetch16(),value:0};throw new Error('Invalid operand mode 0x'+mode.toString(16));}
+ readOperand(o){return o.mode==='reg'?this.reg[o.index]:o.mode==='imm'?o.value:this.read16(o.address);}
+ writeOperand(o,v){v&=0xFFFF;if(o.mode==='reg')this.reg[o.index]=v;else if(o.mode==='mem')this.write16(o.address,v);else throw new Error('Cannot write immediate');}
+ step(){if(this.halted)return;const opcode=this.fetch8();this.lastInstruction=OPCODE_NAMES[opcode]??'???';switch(opcode){
+ case OPCODES.NOP:break;case OPCODES.HALT:this.halted=true;break;
+ case OPCODES.MOV:{const d=this.operand(),s=this.operand();this.writeOperand(d,this.readOperand(s));break;}
+ case OPCODES.LOAD:{const d=this.operand(),a=this.operand();this.writeOperand(d,this.read16(this.readOperand(a)));break;}
+ case OPCODES.STORE:{const a=this.operand(),s=this.operand();this.write16(this.readOperand(a),this.readOperand(s));break;}
+ case OPCODES.PUSH:this.push(this.readOperand(this.operand()));break;case OPCODES.POP:this.writeOperand(this.operand(),this.pop());break;
+ case OPCODES.ADD:{const d=this.operand(),s=this.operand(),a=this.readOperand(d),b=this.readOperand(s),r=a+b;this.writeOperand(d,r);this.setFlags(r,r>0xFFFF);break;}
+ case OPCODES.SUB:{const d=this.operand(),s=this.operand(),a=this.readOperand(d),b=this.readOperand(s),r=(a-b)&0xFFFF;this.writeOperand(d,r);this.setFlags(r,a<b);break;}
+ case OPCODES.MUL:{const d=this.operand(),s=this.operand(),r=this.readOperand(d)*this.readOperand(s);this.writeOperand(d,r);this.setFlags(r,r>0xFFFF);break;}
+ case OPCODES.DIV:{const d=this.operand(),s=this.operand(),b=this.readOperand(s);if(!b)throw new Error('Division by zero');const r=Math.floor(this.readOperand(d)/b);this.writeOperand(d,r);this.setFlags(r);break;}
+ case OPCODES.INC:{const d=this.operand(),r=(this.readOperand(d)+1)&0xFFFF;this.writeOperand(d,r);this.setFlags(r);break;}case OPCODES.DEC:{const d=this.operand(),r=(this.readOperand(d)-1)&0xFFFF;this.writeOperand(d,r);this.setFlags(r);break;}
+ case OPCODES.AND:case OPCODES.OR:case OPCODES.XOR:{const d=this.operand(),s=this.operand(),a=this.readOperand(d),b=this.readOperand(s);const r=opcode===OPCODES.AND?a&b:opcode===OPCODES.OR?a|b:a^b;this.writeOperand(d,r);this.setFlags(r);break;}
+ case OPCODES.NOT:{const d=this.operand(),r=(~this.readOperand(d))&0xFFFF;this.writeOperand(d,r);this.setFlags(r);break;}
+ case OPCODES.CMP:{const a=this.readOperand(this.operand()),b=this.readOperand(this.operand()),r=(a-b)&0xFFFF;this.setFlags(r,a<b);break;}
+ case OPCODES.JMP:this.pc=this.fetch16();break;case OPCODES.JZ:{const a=this.fetch16();if(this.flags.Z)this.pc=a;break;}case OPCODES.JNZ:{const a=this.fetch16();if(!this.flags.Z)this.pc=a;break;}case OPCODES.JC:{const a=this.fetch16();if(this.flags.C)this.pc=a;break;}case OPCODES.JN:{const a=this.fetch16();if(this.flags.N)this.pc=a;break;}
+ case OPCODES.CALL:{const a=this.fetch16();this.push(this.pc);this.pc=a;break;}case OPCODES.RET:this.pc=this.pop();break;
+ case OPCODES.SHL:{const d=this.operand(),s=this.operand(),r=(this.readOperand(d)<<(this.readOperand(s)&15))&0xFFFF;this.writeOperand(d,r);this.setFlags(r);break;}case OPCODES.SHR:{const d=this.operand(),s=this.operand(),r=this.readOperand(d)>>(this.readOperand(s)&15);this.writeOperand(d,r);this.setFlags(r);break;}
+ case OPCODES.OUT:this.terminal?.write(this.readOperand(this.operand()));break;case OPCODES.IN:this.writeOperand(this.operand(),this.terminal?.read()??0);break;
+ default:throw new Error('Illegal opcode 0x'+opcode.toString(16));}
+ this.cycles++;}
+ run(maxCycles=100000){this.halted=false;let n=0;while(!this.halted&&n++<maxCycles)this.step();if(n>=maxCycles){this.halted=true;throw new Error('Execution limit reached');}}
+}
