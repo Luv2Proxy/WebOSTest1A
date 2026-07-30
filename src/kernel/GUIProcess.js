@@ -1,0 +1,1 @@
+export class GUIProcess {constructor(kernel,gpu){this.kernel=kernel;this.gpu=gpu;this.gui=null;}start(){this.gui=this.kernel.gui;this.gui.createWindow('Welcome',80,60,360,220);this.gui.createWindow('Terminal',120,110,420,240);this.gui.render();return this.gui.snapshot();}}
