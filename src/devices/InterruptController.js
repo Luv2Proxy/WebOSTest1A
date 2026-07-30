@@ -1,0 +1,1 @@
+export class InterruptController { constructor(){this.pending=[];this.enabled=true;} raise(vector,payload=null){if(this.enabled)this.pending.push({vector,payload});} poll(){return this.pending.shift()??null;} clear(){this.pending.length=0;} }
