@@ -1,0 +1,1 @@
+export class BIOS { constructor(machine){this.machine=machine;} boot(image){this.machine.reset();if(image)this.machine.load(image);return true;} print(text){for(const c of text)this.machine.terminal.write(c.charCodeAt(0));} }
