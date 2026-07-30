@@ -1,9 +1,11 @@
 import {MEMORY_MAP} from './memoryMap.js';
 export class MMU {
- constructor(ram,devices={}){this.ram=ram;this.devices=devices;this.pageSize=4096;this.pages=new Map();}
- map(start,end,permissions='rwx',owner='kernel'){for(let p=start&~4095;p<=end;p+=this.pageSize)this.pages.set(p>>12,{permissions,owner});}
- unmap(start,end){for(let p=start&~4095;p<=end;p+=this.pageSize)this.pages.delete(p>>12);}
- check(a,op='r',mode='kernel'){a=Number(a)>>>0;const page=this.pages.get(a>>>12);if(mode==='kernel')return true;if(!page)throw new Error('Page fault at 0x'+a.toString(16));if(!page.permissions.includes(op))throw new Error('Protection fault at 0x'+a.toString(16));return true;}
+ constructor(ram,devices={}){this.ram=ram;this.devices=devices;this.pageSize=4096;this.kernelPages=new Map();this.currentSpace=null;}
+ map(start,end,permissions='rwx',owner='kernel',space=this.kernelPages){for(let p=start&~4095;p<=end;p+=this.pageSize)space.set(p>>12,{permissions,owner});}
+ unmap(start,end,space=this.kernelPages){for(let p=start&~4095;p<=end;p+=this.pageSize)space.delete(p>>12);}
+ useAddressSpace(addressSpace){this.currentSpace=addressSpace||null;}
+ clearAddressSpace(){this.currentSpace=null;}
+ check(a,op='r',mode='kernel'){a=Number(a)>>>0;if(mode==='kernel')return true;if(!this.currentSpace)throw new Error('No address space for user access');if(!this.currentSpace.contains(a,op))throw new Error('Protection/page fault at 0x'+a.toString(16));return true;}
  translate(a,op='r',mode='kernel'){a=Number(a)>>>0;this.check(a,op,mode);return a;}
  read8(a,mode='kernel'){a=this.translate(a,'r',mode);if(a===MEMORY_MAP.TERMINAL_IN)return this.devices.terminal?.read()??0;if(a===MEMORY_MAP.TIMER)return this.devices.timer?.read()??0;if(a>=MEMORY_MAP.FRAMEBUFFER_BASE&&a<MEMORY_MAP.FRAMEBUFFER_BASE+MEMORY_MAP.FRAMEBUFFER_WIDTH*MEMORY_MAP.FRAMEBUFFER_HEIGHT)return this.devices.framebuffer?.read(a-MEMORY_MAP.FRAMEBUFFER_BASE)??0;return this.ram.read8(a);}
  write8(a,v,mode='kernel'){a=this.translate(a,'w',mode);v&=255;if(a===MEMORY_MAP.TERMINAL_OUT){this.devices.terminal?.write(v);return;}if(a===MEMORY_MAP.TIMER){this.devices.timer?.write(v);return;}if(a>=MEMORY_MAP.FRAMEBUFFER_BASE&&a<MEMORY_MAP.FRAMEBUFFER_BASE+MEMORY_MAP.FRAMEBUFFER_WIDTH*MEMORY_MAP.FRAMEBUFFER_HEIGHT){this.devices.framebuffer?.write(a-MEMORY_MAP.FRAMEBUFFER_BASE,v);return;}this.ram.write8(a,v);}
