@@ -1,0 +1,1 @@
+export class MemoryFault extends Error {constructor(type,address,process=null,message=''){super(message||`${type} at 0x${Number(address).toString(16)}`);this.name='MemoryFault';this.type=type;this.address=Number(address)>>>0;this.pid=process?.pid??0;this.faultCode=type==='page' ? 14 : 13;}}
