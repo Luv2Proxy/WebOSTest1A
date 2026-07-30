@@ -1,0 +1,11 @@
+import {OPCODES} from '../cpu/opcodes.js';
+const reg=/^R([0-7])$/i;
+function num(s,labels){s=s.trim();if(labels[s]!==undefined)return labels[s];if(/^0x[\da-f]+$/i.test(s))return parseInt(s,16);if(/^0b[01]+$/i.test(s))return parseInt(s.slice(2),2);if(/^-?\d+$/.test(s))return Number(s);throw new Error('Unknown symbol: '+s);}
+function args(s){const out=[];let cur='',q=null;for(const c of s){if(c==='"'||c==="'"){q=q===c?null:q||c;cur+=c;}else if(c===','&&!q){out.push(cur.trim());cur='';}else cur+=c;}if(cur.trim())out.push(cur.trim());return out;}
+function parse(line){line=line.replace(/;.*$/,'').trim();if(!line)return null;let label=null;const m=line.match(/^([A-Za-z_]\w*):/);if(m){label=m[1];line=line.slice(m[0].length).trim();}if(!line)return{label,op:null,args:[]};const x=line.match(/^([A-Za-z]+)\s*(.*)$/);return{label,op:x[1].toUpperCase(),args:args(x[2])};}
+function db(a,labels){const b=[];for(const s of a){if(/^['"].*['"]$/.test(s)){const t=s.slice(1,-1);for(let i=0;i<t.length;i++){if(t[i]==='\\'&&i+1<t.length){const c=t[++i];b.push(c==='n'?10:c==='r'?13:c==='t'?9:0);}else b.push(t.charCodeAt(i)&255);}}else b.push(num(s,labels)&255);}return b;}
+function os(s){return reg.test(s.trim())?1:3;}
+export function assemble(source){const lines=source.split(/\r?\n/).map(parse),labels={};let pc=0x100;for(const l of lines){if(!l)continue;if(l.label)labels[l.label]=pc;if(!l.op)continue;if(l.op==='DB'){pc+=db(l.args,labels).length;continue;}if(OPCODES[l.op]===undefined)throw new Error('Unknown instruction: '+l.op);if(['NOP','HALT','RET'].includes(l.op))pc++;else if(['JMP','JZ','JNZ','JC','JN','CALL'].includes(l.op))pc+=3;else if(['PUSH','POP','INC','DEC','NOT','OUT','IN'].includes(l.op))pc+=2;else pc+=1+l.args.reduce((n,a)=>n+os(a),0);}
+ const out=[];const e8=v=>out.push(v&255),e16=v=>out.push(v&255,(v>>8)&255);const operand=t=>{t=t.trim();const r=t.match(reg);if(r){e8(+r[1]);return;}const m=t.match(/^\[(.+)\]$/);if(m){e8(0x40);e16(num(m[1],labels));return;}e8(0x80);e16(num(t,labels));};
+ for(const l of lines){if(!l||!l.op)continue;if(l.op==='DB'){db(l.args,labels).forEach(e8);continue;}e8(OPCODES[l.op]);if(['NOP','HALT','RET'].includes(l.op))continue;if(['JMP','JZ','JNZ','JC','JN','CALL'].includes(l.op)){e16(num(l.args[0],labels));continue;}l.args.forEach(operand);}
+ return{bytes:new Uint8Array(out),labels};}
