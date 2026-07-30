@@ -1,0 +1,2 @@
+import {Device} from './Device.js';
+export class Timer extends Device { constructor(){super('timer');this.ticks=0;this.interval=0;this.last=performance.now();} update(){const n=performance.now();this.ticks+=Math.floor(n-this.last);this.last=n;} read(){this.update();return this.ticks&255;} write(v){this.interval=v&255;} }
