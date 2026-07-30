@@ -1,0 +1,2 @@
+import {Device} from './Device.js';
+export class Keyboard extends Device { constructor(){super('keyboard');this.queue=[];this.pressed=new Set();} attach(target=window){target.addEventListener('keydown',e=>{this.pressed.add(e.code);this.queue.push(e.key.length===1?e.key.charCodeAt(0):0);});target.addEventListener('keyup',e=>this.pressed.delete(e.code));} read(){return this.queue.length?this.queue.shift():0;} isPressed(code){return this.pressed.has(code);} }
