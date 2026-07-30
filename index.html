@@ -1,18 +1,165 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>VCPU-16 Virtual OS</title><link rel="stylesheet" href="src/styles.css"></head>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VCPU-16 Virtual OS</title>
+<link rel="stylesheet" href="src/styles.css">
+</head>
 <body>
-<header class="topbar"><h1>VCPU-16 Virtual OS</h1><span class="badge">16-bit Virtual Machine</span><span class="badge">64 KB RAM</span><span id="status" class="status">BOOTING</span></header>
-<main id="os-app"><section class="desktop-panel"><div class="os-toolbar"><strong>VCPU-16</strong><span id="bootMessage">Starting virtual computer...</span><button id="reboot">Reboot</button></div><div class="desktop-grid">
-<div class="terminal-window" id="terminalWindow"><div class="window-title">Terminal — vcpu16</div><div class="terminal-output" id="terminalOutput"></div><div class="terminal-line"><span>vcpu16&gt;</span><input id="terminalInput" class="terminal-input" autocomplete="off" spellcheck="false" autofocus></div></div>
-<div class="info-window"><div class="window-title">System</div><div class="info-body"><h2>VCPU-16 Virtual OS</h2><p>A browser-hosted operating system running on the VCPU-16 virtual machine.</p><div class="info-card"><b>Filesystem</b><span>Persistent IndexedDB</span></div><div class="info-card"><b>Kernel</b><span>VCPU-16 kernel 0.2</span></div><div class="info-card"><b>Architecture</b><span>16-bit virtual CPU</span></div><div class="info-card"><b>Commands</b><span>help, ls, cat, pwd, mkdir, write, ps</span></div></div></div>
-<div class="display-window"><div class="window-title">Virtual Display</div><canvas id="canvas" width="320" height="240"></canvas></div></div></section></main>
+<header class="topbar">
+  <h1>VCPU-16 Virtual OS</h1>
+  <span class="badge">16-bit Virtual Machine</span>
+  <span class="badge">64 KB RAM</span>
+  <span id="status" class="status">BOOTING</span>
+</header>
+
+<main id="os-app">
+<section class="desktop-panel">
+  <div class="os-toolbar">
+    <strong>VCPU-16</strong>
+    <span id="bootMessage">Starting virtual computer...</span>
+    <button id="reboot">Reboot</button>
+  </div>
+
+  <div class="desktop-grid">
+    <div class="terminal-window" id="terminalWindow">
+      <div class="window-title">Terminal — vcpu16</div>
+      <div class="terminal-output" id="terminalOutput"></div>
+      <div class="terminal-line">
+        <span>vcpu16&gt;</span>
+        <input id="terminalInput" class="terminal-input" autocomplete="off" spellcheck="false" autofocus>
+      </div>
+    </div>
+
+    <div class="info-window">
+      <div class="window-title">System</div>
+      <div class="info-body">
+        <h2>VCPU-16 Virtual OS</h2>
+        <p>A browser-hosted operating system running on the VCPU-16 virtual machine.</p>
+        <div class="info-card"><b>Filesystem</b><span>Persistent IndexedDB</span></div>
+        <div class="info-card"><b>Kernel</b><span>VCPU-16 kernel 0.2</span></div>
+        <div class="info-card"><b>Architecture</b><span>16-bit virtual CPU</span></div>
+        <div class="info-card"><b>Commands</b><span>help, ls, cat, pwd, mkdir, write, ps</span></div>
+      </div>
+    </div>
+
+    <div class="display-window">
+      <div class="window-title">Virtual Display</div>
+      <canvas id="canvas" width="320" height="240"></canvas>
+    </div>
+  </div>
+</section>
+</main>
+
 <script type="module">
-import {UserOS} from './src/os/UserOS.js';
-const root=document.getElementById('terminalWindow'),output=document.getElementById('terminalOutput'),input=document.getElementById('terminalInput'),status=document.getElementById('status'),bootMessage=document.getElementById('bootMessage'),canvas=document.getElementById('canvas');
-const os=new UserOS({terminalRoot:root,canvas});let booting=true;
-function write(text){output.textContent+=String(text);output.scrollTop=output.scrollHeight;}
-async function boot(){booting=true;status.textContent='BOOTING';output.textContent='';write('VCPU-16 BIOS v0.2\nPOST: CPU ........ OK\nPOST: RAM ........ OK (64 KB)\nPOST: MMU ........ OK\nPOST: DEVICES .... OK\nMounting persistent filesystem...\n');try{await os.boot();booting=false;status.textContent='RUNNING';bootMessage.textContent='System online';input.focus();}catch(e){status.textContent='FAULT';write('\nKERNEL PANIC: '+e.message+'\n');console.error(e);}}
-input.addEventListener('keydown',async e=>{if(e.key!=='Enter'||booting)return;const line=input.value;input.value='';write('vcpu16> '+line+'\n');try{await os.command(line);}catch(err){write('error: '+err.message+'\nvcpu16> ');}});
-document.getElementById('reboot').onclick=()=>location.reload();boot();
-</script></body></html>
+import { UserOS } from './src/os/UserOS.js';
+
+const output = document.getElementById('terminalOutput');
+const input = document.getElementById('terminalInput');
+const status = document.getElementById('status');
+const bootMessage = document.getElementById('bootMessage');
+const canvas = document.getElementById('canvas');
+const rebootButton = document.getElementById('reboot');
+
+let booting = true;
+let commandRunning = false;
+
+const os = new UserOS({
+  terminalRoot: document.getElementById('terminalWindow'),
+  canvas
+});
+
+function write(text) {
+  output.textContent += String(text);
+  output.scrollTop = output.scrollHeight;
+}
+
+function setStatus(text, state = '') {
+  status.textContent = text;
+  status.dataset.state = state;
+}
+
+async function boot() {
+  booting = true;
+  commandRunning = false;
+  setStatus('BOOTING', 'booting');
+  bootMessage.textContent = 'Starting virtual computer...';
+  output.textContent = '';
+  input.disabled = true;
+
+  write('VCPU-16 BIOS v0.2\n');
+  write('POST: CPU ........ OK\n');
+  write('POST: RAM ........ OK (64 KB)\n');
+  write('POST: MMU ........ OK\n');
+  write('POST: DEVICES .... OK\n');
+  write('Mounting persistent filesystem...\n');
+
+  try {
+    await os.boot();
+
+    booting = false;
+    setStatus('RUNNING', 'running');
+    bootMessage.textContent = 'System online';
+    input.disabled = false;
+    input.focus();
+  } catch (error) {
+    booting = false;
+    setStatus('FAULT', 'fault');
+    bootMessage.textContent = 'Kernel panic';
+    write('\nKERNEL PANIC: ' + (error?.stack || error?.message || error) + '\n');
+    console.error(error);
+  }
+}
+
+async function executeCommand(line) {
+  if (booting || commandRunning) return;
+  if (!line.trim()) return;
+
+  commandRunning = true;
+  input.disabled = true;
+
+  write('vcpu16> ' + line + '\n');
+
+  try {
+    const result = await os.command(line);
+    if (result !== undefined && result !== null && String(result).length) {
+      write(String(result) + '\n');
+    }
+  } catch (error) {
+    write('error: ' + (error?.message || error) + '\n');
+  } finally {
+    commandRunning = false;
+    if (!booting && status.dataset.state !== 'fault') {
+      input.disabled = false;
+      input.focus();
+      write('vcpu16> ';
+    }
+  }
+}
+
+input.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    const line = input.value;
+    input.value = '';
+    executeCommand(line);
+  }
+});
+
+rebootButton.addEventListener('click', () => {
+  location.reload();
+});
+
+window.addEventListener('error', event => {
+  if (!booting) write('\nSYSTEM ERROR: ' + event.message + '\n');
+});
+
+window.addEventListener('unhandledrejection', event => {
+  if (!booting) write('\nASYNC ERROR: ' + (event.reason?.message || event.reason) + '\n');
+});
+
+boot();
+</script>
+</body>
+</html>
