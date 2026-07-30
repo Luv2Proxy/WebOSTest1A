@@ -1,0 +1,4 @@
+export class Shell {
+  constructor(kernel){this.kernel=kernel;this.cwd='/';this.commands={help:()=>Object.keys(this.commands).join('  '),pwd:()=>this.cwd,ls:args=>this.kernel.fs.list(args[0]||this.cwd).map(x=>x.name+(x.type==='dir'?'/':'')).join('\n'),cat:args=>this.kernel.fs.readFile(args[0]),mkdir:args=>{this.kernel.fs.mkdir(args[0]);return '';},write:args=>{const p=args.shift();this.kernel.fs.writeFile(p,args.join(' '));return '';},ps:()=>this.kernel.processes.list().map(p=>`${p.pid}\t${p.state}\t${p.name}`).join('\n'),clear:()=>{this.kernel.machine.terminal.onOutput('\x1b[C');return '';}};}
+  execute(line){const parts=line.trim().split(/\s+/);if(!parts[0])return '';const cmd=this.commands[parts[0]];if(!cmd)return `command not found: ${parts[0]}`;try{return cmd(parts.slice(1))}catch(e){return `error: ${e.message}`;}}
+}
