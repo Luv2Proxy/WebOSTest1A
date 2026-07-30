@@ -13,7 +13,6 @@
   <span class="badge">64 KB RAM</span>
   <span id="status" class="status">BOOTING</span>
 </header>
-
 <main id="os-app">
 <section class="desktop-panel">
   <div class="os-toolbar">
@@ -21,7 +20,6 @@
     <span id="bootMessage">Starting virtual computer...</span>
     <button id="reboot">Reboot</button>
   </div>
-
   <div class="desktop-grid">
     <div class="terminal-window" id="terminalWindow">
       <div class="window-title">Terminal — vcpu16</div>
@@ -31,7 +29,6 @@
         <input id="terminalInput" class="terminal-input" autocomplete="off" spellcheck="false" autofocus>
       </div>
     </div>
-
     <div class="info-window">
       <div class="window-title">System</div>
       <div class="info-body">
@@ -40,10 +37,9 @@
         <div class="info-card"><b>Filesystem</b><span>Persistent IndexedDB</span></div>
         <div class="info-card"><b>Kernel</b><span>VCPU-16 kernel 0.2</span></div>
         <div class="info-card"><b>Architecture</b><span>16-bit virtual CPU</span></div>
-        <div class="info-card"><b>Commands</b><span>help, ls, cat, pwd, mkdir, write, ps</span></div>
+        <div class="info-card"><b>Commands</b><span>help, pwd, ls, cd, cat, mkdir, write, rm, ps, clear</span></div>
       </div>
     </div>
-
     <div class="display-window">
       <div class="window-title">Virtual Display</div>
       <canvas id="canvas" width="320" height="240"></canvas>
@@ -51,7 +47,6 @@
   </div>
 </section>
 </main>
-
 <script type="module">
 import { UserOS } from './src/os/UserOS.js';
 
@@ -97,7 +92,6 @@ async function boot() {
 
   try {
     await os.boot();
-
     booting = false;
     setStatus('RUNNING', 'running');
     bootMessage.textContent = 'System online';
@@ -118,7 +112,6 @@ async function executeCommand(line) {
 
   commandRunning = true;
   input.disabled = true;
-
   write('vcpu16> ' + line + '\n');
 
   try {
@@ -133,18 +126,17 @@ async function executeCommand(line) {
     if (!booting && status.dataset.state !== 'fault') {
       input.disabled = false;
       input.focus();
-      write('vcpu16> ';
+      write('vcpu16> ');
     }
   }
 }
 
 input.addEventListener('keydown', event => {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    const line = input.value;
-    input.value = '';
-    executeCommand(line);
-  }
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  const line = input.value;
+  input.value = '';
+  executeCommand(line);
 });
 
 rebootButton.addEventListener('click', () => {
