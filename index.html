@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VCPU-16 Virtual Computer</title>
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>VCPU-16 Virtual Computer</h1>
+    <span class="badge">16-bit ISA</span>
+    <span class="badge">64 KB RAM</span>
+    <span id="status" class="status">READY</span>
+  </header>
+
+  <main id="app">
+    <section class="panel left-panel">
+      <div class="panel-title">Program / Assembler</div>
+      <div class="toolbar">
+        <select id="exampleSelect"></select>
+        <button id="loadExample">Load</button>
+        <button id="assemble" class="primary">Assemble</button>
+        <button id="run" class="primary">Run</button>
+        <button id="pause">Pause</button>
+        <button id="step">Step</button>
+        <button id="reset" class="danger">Reset</button>
+      </div>
+      <textarea id="source" spellcheck="false"></textarea>
+      <div class="panel-title">Example Programs</div>
+      <div class="panel-body">
+        <div id="programs"></div>
+        <p class="help">
+          Assembly syntax: <b>MOV R0, 10</b>, <b>ADD R0, R1</b>,
+          <b>JNZ label</b>, <b>DB "Hello", 0</b>.<br>
+          Numbers: decimal, hexadecimal (<b>0xFF</b>), or binary (<b>0b1010</b>).
+        </p>
+      </div>
+    </section>
+
+    <section class="panel center-panel">
+      <div class="panel-title">Virtual Display</div>
+      <div class="screen-wrap"><canvas id="canvas" width="320" height="240"></canvas></div>
+      <div class="panel-title">Terminal Output</div>
+      <pre id="terminal"></pre>
+      <div class="panel-title">Execution Log</div>
+      <pre id="log"></pre>
+    </section>
+
+    <section class="panel right-panel">
+      <div class="panel-title">CPU Registers</div>
+      <div class="panel-body">
+        <div id="registers" class="registers"></div>
+        <div id="flags" class="flags"></div>
+      </div>
+      <div class="panel-title">Stack</div>
+      <div class="panel-body" id="stack"></div>
+      <div class="panel-title">Memory</div>
+      <div class="panel-body"><pre id="memory" class="memory"></pre></div>
+    </section>
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
