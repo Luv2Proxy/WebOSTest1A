@@ -1,0 +1,12 @@
+; Arithmetic demo
+MOV R0, 12
+MOV R1, 7
+ADD R0, R1
+OUT R0
+MOV R2, 6
+MUL R0, R2
+OUT R0
+MOV R3, 3
+DIV R0, R3
+OUT R0
+HALT
