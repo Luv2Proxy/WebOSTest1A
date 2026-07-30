@@ -110,6 +110,10 @@ function updatePrompt() {
   promptElement.textContent = getPrompt();
 }
 
+// Render the initial prompt immediately. The prompt lives outside the
+// terminal output buffer, so it must be updated independently of boot text.
+updatePrompt();
+
 async function changeDirectory(path) {
   const target = resolvePath(path || '/');
 
@@ -149,8 +153,8 @@ async function boot() {
     setStatus('RUNNING', 'running');
     bootMessage.textContent = 'System online';
     input.disabled = false;
-    input.focus();
     updatePrompt();
+    input.focus();
   } catch (error) {
     booting = false;
     setStatus('FAULT', 'fault');
@@ -167,8 +171,8 @@ async function executeCommand(line) {
   commandRunning = true;
   input.disabled = true;
 
-  // The prompt is already visible in the input row. Only echo the command
-  // itself here, so we never print a second prompt before command execution.
+  // The prompt is rendered by #terminalPrompt. Echo only the command here.
+  // This prevents the old "vcpu16> vcpu16>" duplicate-prompt behavior.
   write(line + '\n');
 
   try {
@@ -179,8 +183,6 @@ async function executeCommand(line) {
     if (command === 'cd') {
       await changeDirectory(args[0] || '/');
     } else {
-      // Keep the existing OS command implementation for all other commands.
-      // The current directory is exposed to it when supported by the OS layer.
       if ('cwd' in os) os.cwd = currentDirectory;
       if ('currentDirectory' in os) os.currentDirectory = currentDirectory;
 
@@ -195,8 +197,8 @@ async function executeCommand(line) {
     commandRunning = false;
     if (!booting && status.dataset.state !== 'fault') {
       input.disabled = false;
-      input.focus();
       updatePrompt();
+      input.focus();
     }
   }
 }
@@ -210,7 +212,7 @@ input.addEventListener('keydown', event => {
 });
 
 rebootButton.addEventListener('click', () => {
-  location.reload();
+  window.location.reload();
 });
 
 window.addEventListener('error', event => {
