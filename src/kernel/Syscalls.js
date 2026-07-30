@@ -1,0 +1,2 @@
+export const SYSCALLS=Object.freeze({WRITE:1,READ:2,OPEN:3,CLOSE:4,EXIT:5,SPAWN:6,GETPID:7});
+export class SyscallAPI { constructor(kernel){this.kernel=kernel;} call(n,args=[]){switch(n){case SYSCALLS.WRITE:return this.kernel.write(args[0]??'');case SYSCALLS.READ:return this.kernel.read();case SYSCALLS.OPEN:return this.kernel.fs.exists(args[0])?0:-1;case SYSCALLS.CLOSE:return 0;case SYSCALLS.EXIT:return this.kernel.exit(args[0]??0);case SYSCALLS.SPAWN:return this.kernel.spawn(args[0]??'process');case SYSCALLS.GETPID:return this.kernel.current?.pid??0;default:return -1;}} }
