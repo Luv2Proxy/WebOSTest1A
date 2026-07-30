@@ -1,0 +1,2 @@
+import {Process} from './Process.js';
+export class ProcessManager { constructor(){this.nextPid=1;this.processes=new Map();} create(entry,name){const p=new Process(this.nextPid++,entry,name);this.processes.set(p.pid,p);return p;} get(pid){return this.processes.get(pid);} kill(pid,code=0){const p=this.get(pid);if(!p)return false;p.state='terminated';p.exitCode=code;return true;} list(){return [...this.processes.values()];} }
