@@ -1,23 +1,8 @@
-import {RAM} from '../memory/RAM.js';
-import {CPU} from '../cpu/CPU.js';
-import {Terminal} from '../devices/Terminal.js';
-import {Framebuffer} from '../devices/Framebuffer.js';
-import {Keyboard} from '../devices/Keyboard.js';
-import {Timer} from '../devices/Timer.js';
-import {InterruptController} from '../devices/InterruptController.js';
-import {MMU} from '../memory/MMU.js';
-import {BIOS} from './BIOS.js';
-import {Kernel} from '../kernel/Kernel.js';
-import {Shell} from '../kernel/Shell.js';
-import {Loader} from './Loader.js';
-import {ProcessRunner} from '../kernel/ProcessRunner.js';
-
+import {RAM} from '../memory/RAM.js';import {CPU} from '../cpu/CPU.js';import {Terminal} from '../devices/Terminal.js';import {Framebuffer} from '../devices/Framebuffer.js';import {Keyboard} from '../devices/Keyboard.js';import {Timer} from '../devices/Timer.js';import {InterruptController} from '../devices/InterruptController.js';import {MMU} from '../memory/MMU.js';import {BIOS} from './BIOS.js';import {Kernel} from '../kernel/Kernel.js';import {Shell} from '../kernel/Shell.js';import {Loader} from './Loader.js';import {ProcessRunner} from '../kernel/ProcessRunner.js';import {IndexedDBStorage} from '../storage/IndexedDBStorage.js';import {InterruptRuntime} from './InterruptRuntime.js';
 export class System {
- constructor({onOutput=()=>{},onFrame=()=>{}}={}){
-  this.interrupts=new InterruptController();this.terminal=new Terminal(onOutput);this.framebuffer=new Framebuffer();this.keyboard=new Keyboard();this.timer=new Timer(this.interrupts);this.ram=new RAM(0x10000);this.mmu=new MMU(this.ram,{terminal:this.terminal,framebuffer:this.framebuffer,timer:this.timer});this.cpu=new CPU({ram:this.ram,terminal:this.terminal,framebuffer:this.framebuffer});this.bios=new BIOS(this);this.kernel=new Kernel(this);this.shell=new Shell(this.kernel);this.loader=new Loader(this,this.kernel.fs);this.runner=new ProcessRunner(this,this.kernel.processes,this.kernel.scheduler);this.onFrame=onFrame;this.booted=false;
- }
- reset(){this.cpu.reset();this.ram.clear();this.framebuffer.clear();this.interrupts.clear();this.kernel.fs=new this.kernel.fs.constructor();this.booted=false;}
- boot(){this.reset();this.kernel.boot();this.booted=true;return this;}
- tick(){this.timer.update();this.runner.runTick();this.onFrame(this.framebuffer);}
+ constructor({onOutput=()=>{},onFrame=()=>{}}={}){this.interrupts=new InterruptController();this.terminal=new Terminal(onOutput);this.framebuffer=new Framebuffer();this.keyboard=new Keyboard();this.keyboard.attach(window);this.timer=new Timer(this.interrupts);this.ram=new RAM(0x10000);this.mmu=new MMU(this.ram,{terminal:this.terminal,framebuffer:this.framebuffer,timer:this.timer});this.cpu=new CPU({mmu:this.mmu,ram:this.ram,terminal:this.terminal,framebuffer:this.framebuffer});this.bios=new BIOS(this);this.storage=new IndexedDBStorage();this.kernel=new Kernel(this);this.shell=new Shell(this.kernel);this.loader=new Loader(this,this.kernel.fs);this.runner=new ProcessRunner(this,this.kernel.processes,this.kernel.scheduler);this.interruptRuntime=new InterruptRuntime(this,this.interrupts);this.onFrame=onFrame;this.booted=false;}
+ async reset(){this.cpu.reset();this.ram.clear();this.framebuffer.clear();this.interrupts.clear();this.booted=false;}
+ async boot(){await this.reset();this.kernel.fs=new (this.kernel.fs.constructor)(this.storage);await this.kernel.fs.ensureReady();this.kernel=new Kernel(this,this.kernel.fs);this.shell=new Shell(this.kernel);this.loader=new Loader(this,this.kernel.fs);this.runner=new ProcessRunner(this,this.kernel.processes,this.kernel.scheduler);const motd=await this.kernel.boot();this.booted=true;this.kernel.write(motd);this.kernel.spawn('init');return this;}
+ tick(){if(!this.booted)return;this.timer.update();this.interruptRuntime.service();this.runner.runTick();this.onFrame(this.framebuffer);}
  executeCommand(command){return this.shell.execute(command);}
 }
