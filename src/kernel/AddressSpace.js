@@ -1,0 +1,1 @@
+export class AddressSpace { constructor(pid){this.pid=pid;this.regions=[];} map(start,end,permissions='rwx'){this.regions.push({start,end,permissions});} contains(address,op='r'){const r=this.regions.find(x=>address>=x.start&&address<=x.end);return !!r&&r.permissions.includes(op);} clone(){const a=new AddressSpace(this.pid);a.regions=this.regions.map(x=>({...x}));return a;} }
