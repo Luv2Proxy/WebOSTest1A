@@ -1,0 +1,1 @@
+export class InterruptRuntime { constructor(machine,interrupts){this.machine=machine;this.interrupts=interrupts;this.enabled=true;this.vectorBase=0x20;} service(){if(!this.enabled)return null;const irq=this.interrupts.poll();if(!irq)return null;this.machine.cpu.push(this.machine.cpu.pc);this.machine.cpu.pc=(this.vectorBase+(irq.vector&0xFF)*2)&0xFFFF;return irq;} }
