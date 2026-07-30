@@ -1,0 +1,14 @@
+; Fibonacci sequence
+MOV R0, 0
+MOV R1, 1
+MOV R2, 12
+loop:
+OUT R0
+ADD R0, R1
+MOV R3, R0
+SUB R3, R1
+MOV R1, R0
+MOV R0, R3
+DEC R2
+JNZ loop
+HALT
