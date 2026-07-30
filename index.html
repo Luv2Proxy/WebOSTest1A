@@ -25,7 +25,7 @@
       <div class="window-title">Terminal — vcpu16</div>
       <div class="terminal-output" id="terminalOutput"></div>
       <div class="terminal-line">
-        <span>vcpu16&gt;</span>
+        <span id="terminalPrompt">vcpu16&gt; </span>
         <input id="terminalInput" class="terminal-input" autocomplete="off" spellcheck="false" autofocus>
       </div>
     </div>
@@ -52,6 +52,7 @@ import { UserOS } from './src/os/UserOS.js';
 
 const output = document.getElementById('terminalOutput');
 const input = document.getElementById('terminalInput');
+const promptElement = document.getElementById('terminalPrompt');
 const status = document.getElementById('status');
 const bootMessage = document.getElementById('bootMessage');
 const canvas = document.getElementById('canvas');
@@ -59,6 +60,7 @@ const rebootButton = document.getElementById('reboot');
 
 let booting = true;
 let commandRunning = false;
+let currentDirectory = '/';
 
 const os = new UserOS({
   terminalRoot: document.getElementById('terminalWindow'),
@@ -75,9 +77,60 @@ function setStatus(text, state = '') {
   status.dataset.state = state;
 }
 
+function normalizePath(path) {
+  const parts = String(path).split('/');
+  const normalized = [];
+
+  for (const part of parts) {
+    if (!part || part === '.') continue;
+    if (part === '..') {
+      if (normalized.length) normalized.pop();
+      continue;
+    }
+    normalized.push(part);
+  }
+
+  return '/' + normalized.join('/');
+}
+
+function resolvePath(path) {
+  const value = String(path || '').trim();
+  if (!value || value === '~') return currentDirectory;
+  if (value.startsWith('/')) return normalizePath(value);
+  return normalizePath(currentDirectory + '/' + value);
+}
+
+function getPrompt() {
+  return currentDirectory === '/'
+    ? 'vcpu16> '
+    : `vcpu16${currentDirectory}> `;
+}
+
+function updatePrompt() {
+  promptElement.textContent = getPrompt();
+}
+
+async function changeDirectory(path) {
+  const target = resolvePath(path || '/');
+
+  if (!await os.fs.exists(target)) {
+    throw new Error(`cd: no such directory: ${path || '/'}`);
+  }
+
+  const entries = await os.fs.list(target);
+  if (!Array.isArray(entries)) {
+    throw new Error(`cd: not a directory: ${path}`);
+  }
+
+  currentDirectory = target;
+  updatePrompt();
+}
+
 async function boot() {
   booting = true;
   commandRunning = false;
+  currentDirectory = '/';
+  updatePrompt();
   setStatus('BOOTING', 'booting');
   bootMessage.textContent = 'Starting virtual computer...';
   output.textContent = '';
@@ -97,6 +150,7 @@ async function boot() {
     bootMessage.textContent = 'System online';
     input.disabled = false;
     input.focus();
+    updatePrompt();
   } catch (error) {
     booting = false;
     setStatus('FAULT', 'fault');
@@ -112,12 +166,28 @@ async function executeCommand(line) {
 
   commandRunning = true;
   input.disabled = true;
-  write('vcpu16> ' + line + '\n');
+
+  // The prompt is already visible in the input row. Only echo the command
+  // itself here, so we never print a second prompt before command execution.
+  write(line + '\n');
 
   try {
-    const result = await os.command(line);
-    if (result !== undefined && result !== null && String(result).length) {
-      write(String(result) + '\n');
+    const tokens = line.trim().split(/\s+/);
+    const command = tokens[0].toLowerCase();
+    const args = tokens.slice(1);
+
+    if (command === 'cd') {
+      await changeDirectory(args[0] || '/');
+    } else {
+      // Keep the existing OS command implementation for all other commands.
+      // The current directory is exposed to it when supported by the OS layer.
+      if ('cwd' in os) os.cwd = currentDirectory;
+      if ('currentDirectory' in os) os.currentDirectory = currentDirectory;
+
+      const result = await os.command(line);
+      if (result !== undefined && result !== null && String(result).length) {
+        write(String(result) + '\n');
+      }
     }
   } catch (error) {
     write('error: ' + (error?.message || error) + '\n');
@@ -126,7 +196,7 @@ async function executeCommand(line) {
     if (!booting && status.dataset.state !== 'fault') {
       input.disabled = false;
       input.focus();
-      write('vcpu16> ');
+      updatePrompt();
     }
   }
 }
