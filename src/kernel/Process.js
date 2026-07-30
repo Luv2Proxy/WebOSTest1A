@@ -1,0 +1,1 @@
+export class Process { constructor(pid,entry,name='process'){this.pid=pid;this.entry=entry;this.name=name;this.state='ready';this.registers=new Uint16Array(8);this.pc=entry;this.sp=0x7FFF;this.exitCode=0;} }
