@@ -1,0 +1,2 @@
+export const SYSTEM_DIRECTORIES=['/bin','/sbin','/etc','/home','/home/user','/proc','/tmp','/dev','/sys'];
+export function initializeFilesystem(fs){for(const path of SYSTEM_DIRECTORIES)fs.mkdir(path);fs.writeFile('/etc/os-release','NAME=VCPU-16 Virtual OS\nVERSION=0.1\nARCH=vcpu16\n');fs.writeFile('/etc/motd','Welcome to VCPU-16 Virtual OS.\nType help for commands.\n');fs.writeFile('/proc/version','VCPU-16 kernel 0.1');fs.writeFile('/proc/cpuinfo','CPU: VCPU-16\nWORD_SIZE: 16\nRAM: 65536 bytes\n');}
