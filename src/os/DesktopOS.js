@@ -1,0 +1,4 @@
+import {GPU} from '../hardware/GPU.js';import {KernelGUI} from '../kernel/GUI.js';import {WindowServer} from '../kernel/WindowServer.js';import {GUIProcess} from '../kernel/GUIProcess.js';import {DisplayBridge} from '../runtime/DisplayBridge.js';
+export class DesktopOS {constructor(system,canvas){this.system=system;this.gpu=new GPU(640,360);this.gui=new KernelGUI(system.kernel,this.gpu);system.kernel.gui=this.gui;this.windows=new WindowServer(this.gui);this.display=new DisplayBridge(canvas,this.gpu);this.process=null;}
+ start(){this.process=new GUIProcess(this.gui,this.gpu);this.process.start();this.display.present();}
+ pointerDown(x,y){this.windows.pointerDown(x,y);this.display.present();}pointerMove(x,y){this.windows.pointerMove(x,y);this.display.present();}pointerUp(){this.windows.pointerUp();}closeAt(x,y){this.windows.clickClose(x,y);this.display.present();}}
