@@ -1,0 +1,1 @@
+export const WORD_SIZE=64;export const WORD_MASK=0xFFFFFFFFFFFFFFFFn;export function u64(value){return BigInt.asUintN(64,BigInt(value));}export function s64(value){return BigInt.asIntN(64,BigInt(value));}export function add64(a,b){return u64(u64(a)+u64(b));}export function sub64(a,b){return u64(u64(a)-u64(b));}
